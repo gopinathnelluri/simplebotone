@@ -11,5 +11,6 @@
   "buyTriggerPercentage": -3,
   "sellTriggerPercentage": 3,
   "useStopLoss": true,
-  "stopLossPercentage": -5
+  "stopLossPercentage": -5,
+  "defaultFeePercentage": 0.3
 }

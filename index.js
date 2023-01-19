@@ -1,6 +1,5 @@
 const Binance = require('binance-api-node').default;
 const TelegramBot = require('node-telegram-bot-api');
-const fs = require('fs');
 let config = require('./config.json');
 
 const client = Binance({
@@ -45,35 +44,26 @@ bot.onText(/\/sell/, async (msg) => {
   bot.sendMessage(chatId, `Sold ${finalQuantity} BTC at ${currentPrice}`);
 });
 
-bot.onText(/\/setconfig (.+)/, (msg, match) => {
+bot.onText(/\/updateconfig/, async (msg) => {
   const chatId = msg.chat.id;
-  let key = match[1];
-  let value = match[2];
-  config[key] = value;
-  fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
-  bot.sendMessage(chatId, `Config ${key} set to ${value}`);
-  
-  // re-read the config file
   config = require('./config.json');
   paperTrading = config.paperTrading;
   buyTriggerPercentage = config.buyTriggerPercentage;
   sellTriggerPercentage = config.sellTriggerPercentage;
   useStopLoss = config.useStopLoss;
   stopLossPercentage = config.stopLossPercentage;
+  bot.sendMessage(chatId, 'config updated');
 });
 
-// Scalping strategy with percentage increase/decrease and optional stop loss
 let lastPrice;
-async function scalping() {
-  // Use the Binance API to get the current price of a coin
-  const ticker = await client.prices();
-  const currentPrice = ticker.BTCUSDT;
 
-  // Get the current fee percentage
-  const exchangeInfo = await client.exchangeInfo();
-  const symbol = exchangeInfo.symbols.find(s => s.symbol === 'BTCUSDT');
-  const fee = symbol.filters.find(f => f.filterType === 'FEE_FILTER');
-  const feePercentage = fee.value / 100;
+async function scalping() {
+  let currentPrice = await client.prices({symbol: 'BTCUSDT'});
+  currentPrice = parseFloat(currentPrice.BTCUSDT);
+  if(!lastPrice) {
+    lastPrice = currentPrice;
+  }
+  let feePercentage = config.defaultFeePercentage;
 
   // Check if the current price is below the buy trigger percentage
   if (currentPrice < lastPrice * (1 + (buyTriggerPercentage/100))) {
@@ -102,16 +92,16 @@ async function scalping() {
       const response = await client.sell({
         symbol: 'BTCUSDT',
         quantity: finalQuantity,
-        price: currentPrice,
+            price: currentPrice,
       });
     }
     console.log(`Sold ${finalQuantity} BTC at ${currentPrice}`);
     bot.sendMessage(config.telegram.chatId, `Sold ${finalQuantity} BTC at ${currentPrice}`);
   }
 
-  // check if the current price is below the stop loss percentage
-  if (useStopLoss && currentPrice < lastPrice * (1 + (stopLossPercentage/100))) {
-    // If the price is below the stop loss, sell
+  // Check if useStopLoss is true and the current price is below the stop loss percentage
+  if (useStopLoss && currentPrice < lastPrice * (1 - (stopLossPercentage/100))) {
+    // If the price is below the stop loss percentage, sell
     let available = await client.accountInfo();
     let quantity = (available.balances.find(x => x.asset === 'BTC')).free;
     let finalQuantity = quantity - (quantity* feePercentage);
@@ -125,7 +115,10 @@ async function scalping() {
     console.log(`Stop loss triggered. Sold ${finalQuantity} BTC at ${currentPrice}`);
     bot.sendMessage(config.telegram.chatId, `Stop loss triggered. Sold ${finalQuantity} BTC at ${currentPrice}`);
   }
+
   lastPrice = currentPrice;
 }
 
 setInterval(() => scalping(), 10000);
+
+
