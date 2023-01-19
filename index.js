@@ -119,6 +119,6 @@ async function scalping() {
   lastPrice = currentPrice;
 }
 
-setInterval(() => scalping(), 10000);
+// setInterval(() => scalping(), 10000);
 
 
