@@ -1,0 +1,15 @@
+{
+  "binance": {
+    "apiKey": "otcVASxp0EnMjQlDdDzxxEmqVt69lZfYlgrtdzvcuL6jarMA7VJgBzkwep3e6BOQ",
+    "apiSecret": "SZ7pbNf0nSu7U2FtOEbyM4hKLG1jq5WZ76C3m6Tv4UkYPBJkzcclhYr9tiSPh1pD"
+  },
+  "telegram": {
+    "token": "5572824402:AAHDLFO-9XgaMn0ujw7mKh6rO_s1x8jUQJM",
+    "chatId": "1332424614"
+  },
+  "paperTrading": true,
+  "buyTriggerPercentage": -3,
+  "sellTriggerPercentage": 3,
+  "useStopLoss": true,
+  "stopLossPercentage": -5
+}

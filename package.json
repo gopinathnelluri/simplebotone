@@ -1,0 +1,15 @@
+{
+  "name": "nelluritradebot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "binance-api-node": "^0.12.2",
+    "node-telegram-bot-api": "^0.61.0"
+  }
+}
