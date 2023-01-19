@@ -1,0 +1,7 @@
+{
+    "apiKey": "YOUR_API_KEY",
+    "apiSecret": "YOUR_API_SECRET",
+    "symbol": "BTCUSDT",
+    "interval": 60000,
+    "stopLoss": 0.02
+}
