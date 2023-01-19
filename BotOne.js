@@ -3,18 +3,9 @@ const client = Binance({
   apiKey: 'YOUR_API_KEY',
   apiSecret: 'YOUR_API_SECRET',
 });
-const fs = require('fs');
-const fileName = 'portfolio.json';
 
 let lastPrice = 0;
-
-// Read portfolio object from disk on start
-let portfolio;
-if (fs.existsSync(fileName)) {
-  portfolio = JSON.parse(fs.readFileSync(fileName));
-} else {
-  portfolio = { BTCUSDT: { quantity: 0, purchasePrice: 0 }, USDT: { balance: 0 } };
-}
+let portfolio = { USDT: { balance: 0 } };
 
 // Define your scalping strategy
 const scalpingStrategy = async () => {
@@ -22,10 +13,21 @@ const scalpingStrategy = async () => {
   const accountInfo = await client.accountInfo();
   let symbol = "BTCUSDT"
   let balance = accountInfo.balances.find(coin => coin.asset === symbol).free;
-  let quantity = balance;
-  if (portfolio[symbol]) {
-    quantity = portfolio[symbol].quantity;
-    lastPrice = portfolio[symbol].purchasePrice;
+  if(balance > 0){
+    // get the last purchase price of a symbol
+    const trades = await client.myTrades({ symbol: symbol, limit: 1 });
+    let purchasePrice = 0;
+    if(trades.length > 0){
+      if (trades[0].isBuyer) {
+        purchasePrice = trades[0].price;
+      }
+    }
+    portfolio[symbol] = { balance, purchasePrice };
+    lastPrice = purchasePrice;
+  }
+  else {
+    lastPrice = 0;
+    portfolio[symbol] = { balance: 0, purchasePrice: 0};
   }
 
   // Get the current USDT balance
@@ -34,6 +36,7 @@ const scalpingStrategy = async () => {
     usdtBalance = portfolio.USDT.balance;
   }
 
+  // Get the current price of the asset you want
   // Get the current price of the asset you want to trade
   const ticker = await client.prices();
   let price = ticker[symbol];
@@ -41,13 +44,13 @@ const scalpingStrategy = async () => {
     lastPrice = price;
   }
   // Get the trading fee
-  const makerFee =     accountInfo.makerCommission / 100;
+  const makerFee = accountInfo.makerCommission / 100;
   const takerFee = accountInfo.takerCommission / 100;
   
   if(price > (lastPrice*(1+ makerFee+takerFee))*1.002){
     // Implement your strategy logic here
     // Place a sell order
-    let sellQuantity = quantity;
+    let sellQuantity = balance;
     const order = await client.order({
       symbol: symbol,
       side: 'SELL',
@@ -56,7 +59,7 @@ const scalpingStrategy = async () => {
     });
     console.log(order);
     lastPrice = price;
-    portfolio[symbol] = { quantity: 0, purchasePrice: lastPrice };
+    portfolio[symbol] = { balance: 0, purchasePrice: lastPrice };
     portfolio.USDT.balance = usdtBalance + sellQuantity * price;
   } else if(price < (lastPrice * 0.998)){
     // Implement your strategy logic here
@@ -70,16 +73,10 @@ const scalpingStrategy = async () => {
     });
     console.log(order);
     lastPrice = price;
-    portfolio[symbol] = { quantity: buyQuantity, purchasePrice: lastPrice };
+    portfolio[symbol] = { balance: buyQuantity, purchasePrice: lastPrice };
     portfolio.USDT.balance = usdtBalance - buyQuantity * price;
   }
 }
 
 // Run your strategy every 'x' minutes
 setInterval(scalpingStrategy, 60000);
-
-// Save portfolio object to disk before exit
-process.on('exit', function() {
-  fs.writeFileSync(fileName, JSON.stringify(portfolio));
-});
-
