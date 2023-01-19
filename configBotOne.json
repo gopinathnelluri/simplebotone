@@ -2,6 +2,9 @@
     "apiKey": "YOUR_API_KEY",
     "apiSecret": "YOUR_API_SECRET",
     "symbol": "BTCUSDT",
-    "interval": 60000,
-    "stopLoss": 0.02
-}
+    "interval": 3000,
+    "leverage": 0.5,
+    "profitMargin": 0.01,
+    "stopLoss": 0.02,
+    "paperTrading": true
+  }
