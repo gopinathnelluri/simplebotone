@@ -1,10 +1,10 @@
 {
-    "apiKey": "YOUR_API_KEY",
-    "apiSecret": "YOUR_API_SECRET",
-    "symbol": "BTCUSDT",
+    "apiKey": "otcVASxp0EnMjQlDdDzxxEmqVt69lZfYlgrtdzvcuL6jarMA7VJgBzkwep3e6BOQ",
+    "apiSecret": "SZ7pbNf0nSu7U2FtOEbyM4hKLG1jq5WZ76C3m6Tv4UkYPBJkzcclhYr9tiSPh1pD",
+    "symbol": "HBARUSDT",
     "interval": 3000,
     "leverage": 0.5,
-    "profitMargin": 0.01,
+    "profitMargin": 0.003,
     "stopLoss": 0.02,
     "paperTrading": true
   }

@@ -13,8 +13,14 @@ let lastPrice = 0;
 let portfolio = { USDT: { balance: 0 } };
 
 // Read the portfolio from file system if it exists
-if(fs.existsSync("portfolio.json")) {
-  portfolio = JSON.parse(fs.readFileSync("portfolio.json"));
+if(config.paperTrading){
+    console.log("PaperTrading Mode Enabled!")
+    if(fs.existsSync("portfolio.json")) {
+        portfolio = JSON.parse(fs.readFileSync("portfolio.json"));
+      } else {
+          console.log("No Portfolio found in file system, initialing the USDT balance to 100");
+          portfolio = { USDT: { balance: 100 } };  
+      }      
 }
 
 // Define your scalping strategy
@@ -24,6 +30,7 @@ const scalpingStrategy = async () => {
     //get the price from binance
     price = await client.prices();
     price = price[symbol];
+
   
     // Fetch the Account info and update portfolio
     if(!config.paperTrading){
@@ -59,14 +66,20 @@ const scalpingStrategy = async () => {
         portfolio[symbol] = { balance: 0, purchasePrice: 0};
       }
     }
-  
+
+    console.log(price, lastPrice, (lastPrice*(1-config.stopLoss)), (lastPrice*(1+config.profitMargin)));
     // Check if the stopLoss is defined
     if (config.stopLoss && lastPrice && price < lastPrice*(1-config.stopLoss)) {
-      sell(symbol, portfolio, price);
+      sell(symbol, portfolio, price, 'STOPLOSS');
     }
     // Check if the price is above the purchasePrice
     else if(lastPrice && price > lastPrice*(1+config.profitMargin)) {
-      sell(symbol, portfolio, price);
+        sell(symbol, portfolio, price);
+    }
+    
+    // Check if the price is below the purchasePrice
+    else if(lastPrice == 0 || (lastPrice && price < lastPrice*(1-config.profitMargin))) {
+        buy(symbol, portfolio, price);
     }
   };
   
@@ -81,27 +94,38 @@ const buy = async (symbol, portfolio, price) => {
       type: 'MARKET',
       quantity: buyQuantity,
     });
-    console.log(`Buy order placed for ${buyQuantity} ${symbol} at market price`);
+    console.log(`Buy order placed for ${buyQuantity} ${symbol} at market price, Portfolio Balance in USDT: ${(portfolio.USDT.balance + (portfolio[symbol].balance * price))}`);
 
     // Log the trade to metrics table
-    pm2.emit('trade', {
-      tradeType: 'BUY',
-      symbol: symbol,
-      quantity: buyQuantity,
-      price: price,
-      timestamp: Date.now()
-    });
+    // pm2.emit('trade', {
+    //   tradeType: 'BUY',
+    //   symbol: symbol,
+    //   quantity: buyQuantity,
+    //   price: price,
+    //   timestamp: Date.now()
+    // });
   } else {
-    console.log(`Buy order placed for ${buyQuantity} ${symbol} at market price`);
+    console.log(`Buy order placed for ${buyQuantity} ${symbol} at market price, Portfolio Balance in USDT: ${(portfolio.USDT.balance + (portfolio[symbol].balance * price))}`);
   }
-  // Update the portfolio
-  portfolio[symbol].balance = buyQuantity;
-  portfolio[symbol].purchasePrice = price;
+//   // Update the portfolio
+//   portfolio[symbol].balance += buyQuantity;
+//   portfolio[symbol].purchasePrice = price;
+//   portfolio.USDT.balance -= buyQuantity * price;
+
+  if(portfolio[symbol].balance) {
+    let totalQuantity = portfolio[symbol].balance + buyQuantity;
+    let totalCost = (portfolio[symbol].balance * portfolio[symbol].purchasePrice) + (buyQuantity * price);
+    portfolio[symbol].purchasePrice = totalCost / totalQuantity;
+    portfolio[symbol].balance = totalQuantity;
+  } else {
+    portfolio[symbol].balance = buyQuantity;
+    portfolio[symbol].purchasePrice = price;
+  }
   portfolio.USDT.balance -= buyQuantity * price;
 }
 
 // Define the sell function
-const sell = async (symbol, portfolio, price) => {
+const sell = async (symbol, portfolio, price, tradeType='SELL') => {
   let sellQuantity = portfolio[symbol].balance;
   if(!config.paperTrading){
     const order = await client.order({
@@ -110,18 +134,18 @@ const sell = async (symbol, portfolio, price) => {
       type: 'MARKET',
       quantity: sellQuantity,
     });
-    console.log(`Sell order placed for ${sellQuantity} ${symbol} at market price`);
+    console.log(`Sell order placed for ${sellQuantity} ${symbol} at market price, Portfolio Balance in USDT: ${(portfolio.USDT.balance +(sellQuantity * price))}` + (tradeType != "SELL")? "(STOP LOSS)": "");
 
     // Log the trade to metrics table
-    pm2.emit('trade', {
-      tradeType: 'SELL',
-      symbol: symbol,
-      quantity: sellQuantity,
-      price: price,
-      timestamp: Date.now()
-    });
+    // pm2.emit('trade', {
+    //   tradeType: tradeType,
+    //   symbol: symbol,
+    //   quantity: sellQuantity,
+    //   price: price,
+    //   timestamp: Date.now()
+    // });
   } else {
-    console.log(`Sell order placed for ${sellQuantity} ${symbol} at market price`);
+    console.log(`Sell order placed for ${sellQuantity} ${symbol} at market price, Portfolio Balance in USDT: ${(portfolio.USDT.balance +(sellQuantity * price))}` + (tradeType != "SELL")? "(STOP LOSS)": "");
   }
   // Update the portfolio
   portfolio[symbol].balance = 0;
@@ -129,21 +153,23 @@ const sell = async (symbol, portfolio, price) => {
   portfolio.USDT.balance += sellQuantity * price;
 }
 
-// Start the strategy
-pm2.connect(() => {
-  pm2.start({
-    script: 'app.js',
-    exec_mode: 'fork',
-    instances: 1,
-}, (err) => {
-    if (err) throw err;
-    setInterval(scalpingStrategy, config.interval);
-  });
-});
+// // Start the strategy
+// pm2.connect(() => {
+//   pm2.start({
+//     script: 'app.js',
+//     exec_mode: 'fork',
+//     instances: 1,
+// }, (err) => {
+//     if (err) throw err;
+//     setInterval(scalpingStrategy, config.interval);
+//   });
+// });
 
-// Save the portfolio to file system everytime it gets updated
-setInterval(() => {
-  fs.writeFileSync("portfolio.json", JSON.stringify(portfolio));
-}, 10000);
+setInterval(scalpingStrategy, config.interval);
+
+// // Save the portfolio to file system everytime it gets updated
+// setInterval(() => {
+//   fs.writeFileSync("portfolio.json", JSON.stringify(portfolio));
+// }, 10000);
 
 
