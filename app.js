@@ -25,7 +25,7 @@ app.get('/sell', (req, res) => {
   });
 
 // Start the server
-const PORT = 3000;
+const PORT = 80;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
