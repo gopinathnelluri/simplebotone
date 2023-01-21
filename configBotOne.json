@@ -2,9 +2,12 @@
     "apiKey": "otcVASxp0EnMjQlDdDzxxEmqVt69lZfYlgrtdzvcuL6jarMA7VJgBzkwep3e6BOQ",
     "apiSecret": "SZ7pbNf0nSu7U2FtOEbyM4hKLG1jq5WZ76C3m6Tv4UkYPBJkzcclhYr9tiSPh1pD",
     "symbol": "BTCUSDT",
-    "interval": 3000,
+    "intervalTime": 30000,
+    "interval": "5m",
     "leverage": 0.5,
     "profitMargin": 0.003,
     "stopLoss": 0.02,
-    "paperTrading": true
+    "paperTrading": true,
+    "shortSMA": 5,
+    "longSMA": 10
   }
