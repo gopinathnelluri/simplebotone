@@ -6,7 +6,7 @@
     "interval": "1m",
     "leverage": 1,
     "profitMargin": 0.003,
-    "fee": 0.003,
+    "fee": 0.002,
     "stopLoss": 0.02,
     "paperTrading": true,
     "shortSMA": 5,
