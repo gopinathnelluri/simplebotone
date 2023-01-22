@@ -3,11 +3,13 @@
     "apiSecret": "SZ7pbNf0nSu7U2FtOEbyM4hKLG1jq5WZ76C3m6Tv4UkYPBJkzcclhYr9tiSPh1pD",
     "symbol": "BTCUSDT",
     "intervalTime": 30000,
-    "interval": "5m",
-    "leverage": 0.5,
+    "interval": "1m",
+    "leverage": 1,
     "profitMargin": 0.003,
+    "fee": 0.003,
     "stopLoss": 0.02,
     "paperTrading": true,
     "shortSMA": 5,
-    "longSMA": 10
+    "longSMA": 10,
+    "neverSellAtLoss": true
   }

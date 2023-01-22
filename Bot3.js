@@ -23,10 +23,9 @@ let tradeData = [];
 
 // Function to get trading data from Binance API
 function getTradingData() {
-    
     client.candles({
         symbol: config.symbol,
-        interval: CandleChartInterval.FIVE_MINUTES,
+        interval: config.interval,
         limit: 20
     }).then(candles => {
         
@@ -66,19 +65,33 @@ function getTradingData() {
         // Check if short SMA is greater than long SMA
         if (shortSMA[shortSMA.length - 1] > longSMA[longSMA.length - 1]) {
             console.log("short SMA is greater than long SMA");
-            //console.log(heikinAshiData[heikinAshiData.length - 1].close, heikinAshiData[heikinAshiData.length - 1].open);
             if (heikinAshiData[heikinAshiData.length - 1].close > heikinAshiData[heikinAshiData.length - 1].open) {
-                if (portfolio[config.symbol] && portfolio[config.symbol].balance) {
-                    sell(config.symbol, portfolio, tradeData[tradeData.length - 1].close);
+                if (portfolio[config.symbol] && 
+                    (portfolio[config.symbol].balance != undefined 
+                        && portfolio[config.symbol].balance != null
+                            && portfolio[config.symbol].balance > 0 )) {
+                    if((!config.neverSellAtLoss) 
+                        || (tradeData[tradeData.length - 1].close > (portfolio[config.symbol].purchasePrice * (1 + config.fee)))){
+                            sell(config.symbol, portfolio, tradeData[tradeData.length - 1].close);
+                    } else {
+                        console.log("Not going sell");
+                    }
+                    
                 } else {
                     buy(config.symbol, portfolio, tradeData[tradeData.length - 1].close);
                 }
             }
         } else if (shortSMA[shortSMA.length - 1] < longSMA[longSMA.length - 1]) {
             console.log("short SMA is less than long SMA");
+
             if (heikinAshiData[heikinAshiData.length - 1].close < heikinAshiData[heikinAshiData.length - 1].open) {
                 if (portfolio[config.symbol] && portfolio[config.symbol].balance) {
-                    sell(config.symbol, portfolio, tradeData[tradeData.length - 1].close);
+                    
+                    if((!config.neverSellAtLoss) 
+                        || (tradeData[tradeData.length - 1].close > (portfolio[config.symbol].purchasePrice * (1 + config.fee)))){
+                            sell(config.symbol, portfolio, tradeData[tradeData.length - 1].close);
+                    }
+                   
                 }
             }
         } else {
@@ -94,7 +107,7 @@ function getTradingData() {
 
 // Function to buy a symbol
 function buy(symbol, portfolio, price) {
-    console.log(`Buying ${symbol} at ${price}`);
+    console.log(`Buying ${symbol} at ${price} and Break even at ${price * (1+config.fee)}, Profit at ${price * (1 + config.fee + config.profitMargin)} `);
     if (config.paperTrading) {
         if (!portfolio[symbol]) {
             portfolio[symbol] = {
@@ -102,8 +115,10 @@ function buy(symbol, portfolio, price) {
                 purchasePrice: 0
             };
         }
-        portfolio[symbol].balance += config.leverage * portfolio.USDT.balance / price;
-        portfolio[symbol].purchasePrice = (portfolio[symbol].purchasePrice * (portfolio[symbol].balance - config.leverage * portfolio.USDT.balance / price) + price * config.leverage * portfolio.USDT.balance / price) / portfolio[symbol].balance;
+
+        portfolio[symbol].purchasePrice = ((portfolio[symbol].purchasePrice * portfolio[symbol].balance) 
+                + (config.leverage * portfolio.USDT.balance)) / (portfolio[symbol].balance +  ((config.leverage * portfolio.USDT.balance)/price));
+        portfolio[symbol].balance += (config.leverage * portfolio.USDT.balance) / price;
         portfolio.USDT.balance -= config.leverage * portfolio.USDT.balance;
     } else {
         client.testOrder({
@@ -139,6 +154,7 @@ function buy(symbol, portfolio, price) {
 function sell(symbol, portfolio, price, tradeType = 'sell') {
     console.log(`Selling ${symbol} at ${price}`);
     if (config.paperTrading) {
+        portfolio.USDT.balance = portfolio[symbol].balance * (price * (1 - config.fee));
         portfolio[symbol].balance = 0;
         portfolio[symbol].purchasePrice = 0;
     } else {
@@ -147,7 +163,8 @@ function sell(symbol, portfolio, price, tradeType = 'sell') {
             side: 'SELL',
             type: 'MARKET',
             quantity: portfolio[symbol].balance
-        }).then(data => {
+        }).then(async (data) => {
+            portfolio.USDT.balance = await client.accountInfo().balances.find(coin => coin.asset === 'USDT').free;
             portfolio[symbol].balance = 0;
             portfolio[symbol].purchasePrice = 0;
             pm2.emit('trade_log', {
@@ -192,7 +209,7 @@ pm2.connect(async () => {
             portfolio = JSON.parse(fs.readFileSync("./portfolio.json"));
         } else {
             console.log("No Portfolio found in file system, initialing the USDT balance to 100");
-            portfolio = { USDT: { balance: 100 } };  
+            portfolio = { USDT: { balance: 1000 } };  
         }   
         getTradingData();
     } else {
